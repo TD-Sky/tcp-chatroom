@@ -5,7 +5,7 @@
 ### 请求 `protocol::short::request`
 
 ```
-Method = <方法>
+<方法>
 [可选] Token = <base64url字符串>
 Length = <数据字节流长度>
 <data>
@@ -15,7 +15,7 @@ Length = <数据字节流长度>
 ### 响应 `protocol::short::response`
 
 ```
-Status = <状态>
+<状态>
 Length = <数据字节流长度>
 [可选] <data>
 ```
