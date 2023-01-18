@@ -29,7 +29,7 @@ impl Route {
         let req = socket::read_request(BufReader::new(&mut socket)).await;
 
         if let request::Method::Login = req.method() {
-            let user: MaybeNewUser = rmp_serde::from_slice(req.data()).unwrap();
+            let user: MaybeNewUser = rmp_serde::from_slice(req.data().unwrap()).unwrap();
 
             let resp = if user.id.is_some() {
                 guard::login(user, &self.db).await
@@ -65,12 +65,13 @@ impl Route {
                 Groups => handlers::group::batch(db).await,
 
                 CreateGroup => {
-                    let group: group::InsertModel = rmp_serde::from_slice(req.data()).unwrap();
+                    let group: group::InsertModel =
+                        rmp_serde::from_slice(req.data().unwrap()).unwrap();
                     handlers::group::create(uid, group, db).await
                 }
 
                 JoinGroup => {
-                    let gid: i32 = rmp_serde::from_slice(req.data()).unwrap();
+                    let gid: i32 = rmp_serde::from_slice(req.data().unwrap()).unwrap();
                     handlers::group::join(gid, uid, db).await
                 }
 

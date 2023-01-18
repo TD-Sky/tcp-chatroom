@@ -17,20 +17,30 @@ pub async fn read_request(mut reader: impl AsyncBufReadExt + Unpin) -> Request {
         .starts_with("Token")
         .then(|| parser::token(&line).unwrap());
 
-    let mut line = String::new();
-    reader.read_line(&mut line).await.unwrap();
-    let length = parser::length(&line).unwrap();
-    let mut data = Vec::with_capacity(length as usize);
-    (&mut reader)
-        .take(length)
-        .read_to_end(&mut data)
-        .await
-        .unwrap();
+    let length = if token.is_some() {
+        let mut line = String::new();
+        reader.read_line(&mut line).await.unwrap();
+        parser::length(&line).unwrap()
+    } else {
+        parser::length(&line).unwrap()
+    };
 
-    let mut req = Request::new(method, data);
+    let mut req = Request::from(method);
+
     if let Some(token) = token {
         req.set_token(token);
     }
+
+    if length != 0 {
+        let mut data = Vec::with_capacity(length as usize);
+        (&mut reader)
+            .take(length)
+            .read_to_end(&mut data)
+            .await
+            .unwrap();
+        req.set_data(data);
+    }
+
     req
 }
 
