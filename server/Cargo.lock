@@ -1552,7 +1552,9 @@ name = "protocol"
 version = "0.1.0"
 dependencies = [
  "nom",
+ "rmp-serde",
  "serde",
+ "thiserror",
 ]
 
 [[package]]
@@ -2060,7 +2062,6 @@ dependencies = [
  "jwt-simple",
  "once_cell",
  "protocol",
- "rmp-serde",
  "rs-snowflake",
  "sea-orm",
  "serde",

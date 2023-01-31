@@ -29,7 +29,7 @@ impl Route {
         let req = socket::read_request(BufReader::new(&mut socket)).await;
 
         if let request::Method::Login = req.method() {
-            let user: MaybeNewUser = rmp_serde::from_slice(req.data().unwrap()).unwrap();
+            let user: MaybeNewUser = req.data().unwrap();
 
             let resp = if user.id.is_some() {
                 guard::login(user, &self.db).await
@@ -58,24 +58,27 @@ impl Route {
 
             match req.method() {
                 Persistence => {
-                    handlers::chat::routine(socket, uid, mq.clone()).await;
+                    handlers::chat::routine(socket, uid, mq).await;
                     return;
                 }
 
                 Groups => handlers::group::batch(db).await,
 
+                MyGroups => handlers::group::user_groups(uid, db).await,
+
                 CreateGroup => {
-                    let group: group::InsertModel =
-                        rmp_serde::from_slice(req.data().unwrap()).unwrap();
+                    let group: group::InsertModel = req.data().unwrap();
                     handlers::group::create(uid, group, db).await
                 }
 
                 JoinGroup => {
-                    let gid: i32 = rmp_serde::from_slice(req.data().unwrap()).unwrap();
+                    let gid: i32 = req.data().unwrap();
                     handlers::group::join(gid, uid, db).await
                 }
 
-                _ => unreachable!(),
+                IdNameMap => handlers::info::id_name_map(uid, mq, db).await,
+
+                Login => unreachable!(),
             }
         };
 

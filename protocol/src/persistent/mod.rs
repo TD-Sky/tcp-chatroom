@@ -2,13 +2,13 @@ use crate::error::ParseMethodError;
 use serde::{Deserialize, Serialize};
 use std::{fmt::Display, str::FromStr};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Serialize, Deserialize)]
 pub struct Horz {
     method: Method,
     data: Option<Vec<u8>>,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Serialize, Deserialize)]
 pub enum Method {
     Ping,
     Pong,
@@ -56,33 +56,56 @@ impl Display for Method {
     }
 }
 
-impl Horz {
-    pub fn new(method: Method, data: Vec<u8>) -> Self {
+impl From<Method> for Horz {
+    fn from(method: Method) -> Self {
+        Self { method, data: None }
+    }
+}
+
+impl<T> From<(Method, T)> for Horz
+where
+    T: Serialize,
+{
+    fn from((method, data): (Method, T)) -> Self {
         Self {
             method,
-            data: Some(data),
+            data: Some(rmp_serde::to_vec(&data).unwrap()),
         }
     }
+}
 
+impl Horz {
+    #[inline]
     pub fn method(&self) -> &Method {
         &self.method
     }
 
-    pub fn data(&self) -> Option<&[u8]> {
+    #[inline]
+    pub fn bytes(&self) -> Option<&[u8]> {
         self.data.as_deref()
     }
 
+    #[inline]
+    pub fn data<T>(&self) -> Option<T>
+    where
+        T: serde::de::DeserializeOwned,
+    {
+        self.bytes()
+            .and_then(|bs| rmp_serde::from_slice(bs).unwrap())
+    }
+
+    #[inline]
     pub fn set_method(&mut self, method: Method) {
         self.method = method;
     }
 
-    pub fn set_data(&mut self, data: Vec<u8>) {
-        self.data = Some(data);
+    #[inline]
+    pub fn set_bytes(&mut self, bytes: Vec<u8>) {
+        self.data = Some(bytes);
     }
-}
 
-impl From<Method> for Horz {
-    fn from(method: Method) -> Self {
-        Self { method, data: None }
+    #[inline]
+    pub fn set_data(&mut self, data: impl Serialize) {
+        self.data = Some(rmp_serde::to_vec(&data).unwrap());
     }
 }

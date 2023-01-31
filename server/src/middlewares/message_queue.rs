@@ -1,15 +1,7 @@
-use crate::models::Message;
-use entity::{group_user, prelude::GroupUser};
-use sea_orm::{
-    ColumnTrait, DatabaseConnection, DeriveColumn, EntityTrait, EnumIter, QueryFilter, QuerySelect,
-};
+use crate::{dba, models::Message};
+use sea_orm::DatabaseConnection;
 use std::{collections::HashMap, mem, sync::Arc};
 use tokio::sync::{mpsc, RwLock};
-
-#[derive(Debug, Clone, Copy, DeriveColumn, EnumIter)]
-enum QueryAs {
-    Uid,
-}
 
 #[derive(Clone)]
 pub struct MessageQueue {
@@ -23,6 +15,10 @@ impl MessageQueue {
             inner: Arc::new(RwLock::new(HashMap::new())),
             db,
         }
+    }
+
+    pub async fn uids(&self) -> Vec<i64> {
+        self.inner.read().await.keys().cloned().collect()
     }
 
     pub async fn insert_user(&self, uid: i64) -> mpsc::Receiver<Message> {
@@ -54,15 +50,7 @@ impl MessageQueue {
             }
 
             Message::Group(gmsg) => {
-                let to_uids = GroupUser::find()
-                    .select_only()
-                    .filter(group_user::Column::Gid.eq(gmsg.gid))
-                    .column_as(group_user::Column::Uid, QueryAs::Uid)
-                    .into_values::<i64, QueryAs>()
-                    .all(&self.db)
-                    .await
-                    .unwrap();
-
+                let to_uids = dba::group_user::group_users_id(&self.db, gmsg.gid).await;
                 let uid2sender = self.inner.read().await;
                 for sender in uid2sender
                     .iter()

@@ -6,9 +6,10 @@ use protocol::{
 };
 use tokio::{io::BufStream, net::TcpStream};
 
-pub async fn routine(socket: TcpStream, uid: i64, mq: MessageQueue) {
+pub async fn routine(socket: TcpStream, uid: i64, mq: &MessageQueue) {
     let mut socket = BufStream::new(socket);
     let mut receiver = mq.insert_user(uid).await;
+    let mq = mq.clone();
     socket::write_response(&mut socket, Response::from(Status::Ok)).await;
 
     tokio::spawn(async move {
@@ -16,20 +17,9 @@ pub async fn routine(socket: TcpStream, uid: i64, mq: MessageQueue) {
             tokio::select! {
                 Some(msg) = receiver.recv() => {
                     let outcoming_horz = match msg {
-                        Message::Public(msg) => {
-                            let data = rmp_serde::to_vec(&msg).unwrap();
-                            Horz::new(Method::PublicMessage, data)
-                        }
-
-                        Message::Private(msg) => {
-                            let data = rmp_serde::to_vec(&msg).unwrap();
-                            Horz::new(Method::PrivateMessage, data)
-                        }
-
-                        Message::Group(msg) => {
-                            let data = rmp_serde::to_vec(&msg).unwrap();
-                            Horz::new(Method::GroupMessage, data)
-                        }
+                        Message::Public(msg) => (Method::PublicMessage, msg).into(),
+                        Message::Private(msg) => (Method::PrivateMessage, msg).into(),
+                        Message::Group(msg) => (Method::GroupMessage, msg).into(),
                     };
 
                     socket::write_horz(&mut socket, outcoming_horz).await;
@@ -53,16 +43,12 @@ pub async fn routine(socket: TcpStream, uid: i64, mq: MessageQueue) {
                         }
 
                         Method::PublicMessage =>{
-                            let msg: PublicMessage = rmp_serde::from_slice(
-                                incoming_horz.data().unwrap()
-                            ).unwrap();
+                            let msg: PublicMessage = incoming_horz.data().unwrap();
                             mq.push(uid, Message::Public(msg)).await;
                         }
 
                         Method::PrivateMessage => {
-                            let pmsg: PrivateMessage = rmp_serde::from_slice(
-                                incoming_horz.data().unwrap()
-                            ).unwrap();
+                            let pmsg: PrivateMessage = incoming_horz.data().unwrap();
                             mq.push(uid, Message::Private(pmsg)).await;
                             incoming_horz.set_method(Method::Echo);
                             let outcoming_horz = incoming_horz;
@@ -70,9 +56,7 @@ pub async fn routine(socket: TcpStream, uid: i64, mq: MessageQueue) {
                         }
 
                         Method::GroupMessage => {
-                            let gmsg: GroupMessage  = rmp_serde::from_slice(
-                                incoming_horz.data().unwrap()
-                            ).unwrap();
+                            let gmsg: GroupMessage = incoming_horz.data().unwrap();
                             mq.push(uid, Message::Group(gmsg)).await;
                         }
 

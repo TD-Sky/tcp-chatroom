@@ -26,11 +26,9 @@ pub async fn read_request(mut reader: impl AsyncBufReadExt + Unpin) -> Request {
     };
 
     let mut req = Request::from(method);
-
     if let Some(token) = token {
         req.set_token(token);
     }
-
     if length != 0 {
         let mut data = Vec::with_capacity(length as usize);
         (&mut reader)
@@ -38,7 +36,7 @@ pub async fn read_request(mut reader: impl AsyncBufReadExt + Unpin) -> Request {
             .read_to_end(&mut data)
             .await
             .unwrap();
-        req.set_data(data);
+        req.set_bytes(data);
     }
 
     req
@@ -51,7 +49,7 @@ pub async fn write_response(mut writer: impl AsyncWriteExt + Unpin, resp: Respon
         .unwrap();
     writer.write_u8(b'\n').await.unwrap();
 
-    if let Some(data) = resp.data() {
+    if let Some(data) = resp.bytes() {
         writer
             .write_all(format!("Length = {}\n", data.len() as u64).as_bytes())
             .await
@@ -73,17 +71,18 @@ pub async fn read_horz(mut reader: impl AsyncBufReadExt + Unpin) -> Horz {
     reader.read_line(&mut line).await.unwrap();
     let length = parser::length(&line).unwrap();
 
+    let mut horz = Horz::from(method);
     if length != 0 {
-        let mut data = Vec::with_capacity(length as usize);
+        let mut bytes = Vec::with_capacity(length as usize);
         (&mut reader)
             .take(length)
-            .read_to_end(&mut data)
+            .read_to_end(&mut bytes)
             .await
             .unwrap();
-        Horz::new(method, data)
-    } else {
-        Horz::from(method)
+        horz.set_bytes(bytes);
     }
+
+    horz
 }
 
 pub async fn write_horz(mut writer: impl AsyncWriteExt + Unpin, horz: Horz) {
@@ -93,7 +92,7 @@ pub async fn write_horz(mut writer: impl AsyncWriteExt + Unpin, horz: Horz) {
         .unwrap();
     writer.write_u8(b'\n').await.unwrap();
 
-    if let Some(data) = horz.data() {
+    if let Some(data) = horz.bytes() {
         writer
             .write_all(format!("Length = {}\n", data.len() as u64).as_bytes())
             .await
