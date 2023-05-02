@@ -1,0 +1,13 @@
+[package]
+name = "client"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rmp-serde = "1.1.1"
+serde = { version = "1.0.160", features = ["derive"] }
+
+[dependencies.cursive]
+version = "0.20.0"
+default-features = false
+features = ["crossterm-backend"]
