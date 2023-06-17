@@ -1,15 +1,16 @@
-use crate::protocol::conn::serve_connection;
-use crate::service::Router;
 use std::io;
+
 use tokio::net::TcpListener;
 use tracing::info;
+
+use crate::connection::serve_short;
+use crate::service::Router;
 
 pub struct Server {
     listener: TcpListener,
 }
 
 impl Server {
-    #[inline]
     pub async fn new(addr: &str, port: u16) -> io::Result<Self> {
         info!(ip = addr, port = port, "server started");
         Ok(Self {
@@ -26,7 +27,7 @@ impl Server {
 
             let router = router.clone();
             tokio::spawn(async move {
-                serve_connection(socket, |req| router.call(req))
+                serve_short(socket, |req| router.short_call(req))
                     .await
                     .unwrap();
             });

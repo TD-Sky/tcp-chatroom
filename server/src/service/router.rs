@@ -1,17 +1,34 @@
-use crate::protocol::request::Method;
-use crate::protocol::Request;
-use crate::protocol::Response;
+use tracing::info;
 
-use super::handlers;
+use crate::protocol::persistent::Message;
+use crate::protocol::short::{Request, Response};
+use crate::protocol::Body;
+use crate::service::handlers::persistent;
+use crate::service::handlers::short;
 
-// NOTE: Router用来保存数据库连接池及其它权柄
 #[derive(Debug, Clone)]
 pub struct Router;
 
 impl Router {
-    pub async fn call(&self, req: Request) -> Response {
+    pub async fn short_call(&self, req: Request) -> Response {
+        use crate::protocol::short::Method;
+
         match req.method() {
-            Method::Ping => handlers::ping(req),
+            Method::Ping => short::ping(req),
+            Method::Persistent => persistent::connect(req).await,
         }
+    }
+
+    pub async fn persist_call(&self, uid: u32, incoming_msg: Message) -> Option<Message> {
+        use crate::protocol::persistent::Method;
+
+        let echo = match incoming_msg.method() {
+            Method::Private => Some(
+                persistent::privately_msg(uid, incoming_msg.body().deserialize().unwrap()).await,
+            ),
+            _ => unimplemented!(),
+        };
+
+        echo.map(|e| Message::new(Method::Echo, Body::serialize(&e)))
     }
 }

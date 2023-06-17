@@ -30,7 +30,15 @@ impl Status {
     }
 }
 
+impl From<Status> for Response {
+    #[inline]
+    fn from(status: Status) -> Self {
+        Self { status, body: None }
+    }
+}
+
 impl From<&'static str> for Response {
+    #[inline]
     fn from(msg: &'static str) -> Self {
         Self {
             status: Status::Ok,
